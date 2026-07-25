@@ -5,7 +5,7 @@ A GNOME Shell extension that hides the **Dash2Dock Animated** dock while in Over
 ## Requirements
 
 - **GNOME Shell:** 46, 47, 48, 49, 50+
-- **Required Extension:** [Dash2Dock Animated](https://extensions.gnome.org/) installed and enabled.
+- **Required Extension:** [Dash2Dock Animated](https://extensions.gnome.org/extension/4994/dash2dock-lite/) installed and enabled.
 
 ## Features
 
@@ -17,6 +17,6 @@ A GNOME Shell extension that hides the **Dash2Dock Animated** dock while in Over
 ## Installation
 
 1. Copy or clone this extension repository to your local GNOME extensions folder:
+
    ```bash
-   mkdir -p ~/.local/share/gnome-shell/extensions/
-   cp -r hide-dock-in-overview-d2da@custom ~/.local/share/gnome-shell/extensions/
+   git clone [https://github.com/Samuel-645/hide-dock-in-overview-d2da.git](https://github.com/Samuel-645/hide-dock-in-overview-d2da.git) ~/.local/share/gnome-shell/extensions/hide-dock-in-overview-d2da@Samuel-645
