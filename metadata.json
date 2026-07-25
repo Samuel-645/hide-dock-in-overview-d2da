@@ -1,0 +1,9 @@
+{
+  "description": "Hides Dash2Dock Animated in overview with mouse seek reveal + auto-hide",
+  "name": "Hide Dash2Dock Animated in Overview",
+  "shell-version": ["46", "47", "48", "49", "50"],
+  "url": "",
+  "uuid": "hide-dock-in-overview-d2da@custom",
+  "version": 2,
+  "settings-schema": "org.gnome.shell.extensions.hide-dock-in-overview-d2da"
+}
