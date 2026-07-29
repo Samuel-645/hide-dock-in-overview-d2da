@@ -1,0 +1,16 @@
+# Compiled schemas (generate locally via glib-compile-schemas)
+schemas/gschemas.compiled
+gschemas.compiled
+
+# Package archives
+*.zip
+*.tar.gz
+
+# System & OS junk
+.DS_Store
+Thumbs.db
+
+# Node / IDE files (if applicable)
+.vscode/
+.idea/
+node_modules/
