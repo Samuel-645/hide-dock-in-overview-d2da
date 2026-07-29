@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.hide-dock-in-overview-d2da" path="/org/gnome/shell/extensions/hide-dock-in-overview-d2da/">
+    <key type="i" name="reveal-delay">
+      <default>600</default>
+      <summary>Delay before auto-hiding after mouse reveal (milliseconds)</summary>
+      <range min="200" max="3000"/>
+    </key>
+    <key type="i" name="mouse-threshold">
+      <default>80</default>
+      <summary>Mouse proximity threshold (pixels)</summary>
+      <range min="30" max="200"/>
+    </key>
+  </schema>
+</schemalist>
