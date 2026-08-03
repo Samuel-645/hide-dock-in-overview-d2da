@@ -9,7 +9,6 @@ import {
   Extension,
 } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-// Position constants matching St.Side / Dash2Dock orientation
 const Position = {
   TOP: 0,
   BOTTOM: 1,
@@ -23,10 +22,7 @@ export default class HideDockInOverviewD2DA extends Extension {
     this.docks = [];
     this._tempOverviewReveal = false;
     this._isCurrentlyHovering = false;
-    this._overviewHideTimeout = null;
-    this._dragMonitor = null;
 
-    // Cache GSettings to avoid reading settings during mouse motion events
     this._updateCachedSettings();
     this._settingsSignalId = this._settings.connect('changed', () => {
       this._updateCachedSettings();
@@ -36,14 +32,12 @@ export default class HideDockInOverviewD2DA extends Extension {
     this._patchDocks();
     this._enableDragMonitor();
 
-    // Connect overview signals bound to 'this' owner
     Main.overview.connectObject(
       'showing', () => this._onOverviewShowing(),
       'hidden', () => this._onOverviewHidden(),
       this
     );
 
-    // Track mouse motion on stage for seek-to-reveal
     global.stage.connectObject(
       'motion-event', (_, event) => {
         if (Main.overview.visible) {
@@ -61,33 +55,28 @@ export default class HideDockInOverviewD2DA extends Extension {
   }
 
   disable() {
-    try {
-      Main.overview.disconnectObject(this);
-      global.stage.disconnectObject(this);
+    Main.overview.disconnectObject(this);
+    global.stage.disconnectObject(this);
 
-      if (this._settings && this._settingsSignalId) {
-        this._settings.disconnect(this._settingsSignalId);
-        this._settingsSignalId = null;
-      }
-
-      this._disableDragMonitor();
-      this._resetTimer();
-      this._unpatchDocks();
-      this._forceSlideInDocks();
-    } catch (e) {
-      console.error(`[HideDockInOverview] Error during disable: ${e.message}`);
-    } finally {
-      this.docks = [];
-      this._tempOverviewReveal = false;
-      this._isCurrentlyHovering = false;
-      this._settings = null;
+    if (this._settingsSignalId) {
+      this._settings?.disconnect(this._settingsSignalId);
+      this._settingsSignalId = null;
     }
+
+    this._disableDragMonitor();
+    this._resetTimer();
+    this._unpatchDocks();
+    this._forceSlideInDocks();
+
+    this.docks = [];
+    this._tempOverviewReveal = false;
+    this._isCurrentlyHovering = false;
+    this._settings = null;
   }
 
   _updateCachedSettings() {
-    if (!this._settings) return;
-    this._revealDelay = this._settings.get_int('reveal-delay') || 600;
-    this._mouseThreshold = this._settings.get_int('mouse-threshold') || 80;
+    this._revealDelay = this._settings?.get_int('reveal-delay') || 600;
+    this._mouseThreshold = this._settings?.get_int('mouse-threshold') || 80;
   }
 
   _enableDragMonitor() {
@@ -124,40 +113,35 @@ export default class HideDockInOverviewD2DA extends Extension {
   }
 
   _findDocks() {
-    let docks = [];
+    const docks = [];
 
     if (Main.extensionManager) {
       const targetUuids = [
         'dash2dock-lite@anaximeno',
         'dash-to-dock-animated@anaximeno',
         'dash-to-dock@micxgx.gmail.com',
-        'ubuntu-dock@ubuntu.com'
+        'ubuntu-dock@ubuntu.com',
       ];
 
       for (const uuid of targetUuids) {
         const ext = Main.extensionManager.lookup(uuid);
-        if (ext && ext.stateObj) {
-          if (ext.stateObj._dock) docks.push(ext.stateObj._dock);
-          if (ext.stateObj.dock) docks.push(ext.stateObj.dock);
-          if (Array.isArray(ext.stateObj._docks)) docks.push(...ext.stateObj._docks);
-          if (ext.stateObj._dockManager && Array.isArray(ext.stateObj._dockManager._docks)) {
-            docks.push(...ext.stateObj._dockManager._docks);
-          }
+        if (ext?.stateObj) {
+          const state = ext.stateObj;
+          if (state._dock) docks.push(state._dock);
+          if (state.dock) docks.push(state.dock);
+          if (Array.isArray(state._docks)) docks.push(...state._docks);
+          if (Array.isArray(state._dockManager?._docks)) docks.push(...state._dockManager._docks);
         }
       }
 
-      // Safe fallback scan if targeted lookup missed
       if (docks.length === 0 && Main.extensionManager._extensions) {
-        for (let [uuid, ext] of Main.extensionManager._extensions) {
-          if (uuid.includes('dash') || uuid.includes('dock')) {
-            if (ext && ext.stateObj) {
-              if (ext.stateObj._dock) docks.push(ext.stateObj._dock);
-              if (ext.stateObj.dock) docks.push(ext.stateObj.dock);
-              if (Array.isArray(ext.stateObj._docks)) docks.push(...ext.stateObj._docks);
-              if (ext.stateObj._dockManager && Array.isArray(ext.stateObj._dockManager._docks)) {
-                docks.push(...ext.stateObj._dockManager._docks);
-              }
-            }
+        for (const [uuid, ext] of Main.extensionManager._extensions) {
+          if ((uuid.includes('dash') || uuid.includes('dock')) && ext?.stateObj) {
+            const state = ext.stateObj;
+            if (state._dock) docks.push(state._dock);
+            if (state.dock) docks.push(state.dock);
+            if (Array.isArray(state._docks)) docks.push(...state._docks);
+            if (Array.isArray(state._dockManager?._docks)) docks.push(...state._dockManager._docks);
           }
         }
       }
@@ -168,7 +152,7 @@ export default class HideDockInOverviewD2DA extends Extension {
       else docks.push(global.dashToDock);
     }
 
-    if (Main.overview.dash && Main.overview.dash._dock) {
+    if (Main.overview.dash?._dock) {
       docks.push(Main.overview.dash._dock);
     }
 
@@ -178,39 +162,31 @@ export default class HideDockInOverviewD2DA extends Extension {
   _patchDocks() {
     const self = this;
 
-    for (let dock of this.docks) {
-      if (!dock) continue;
-
-      if (typeof dock.slideIn === 'function' && !dock._originalSlideIn) {
+    for (const dock of this.docks) {
+      if (dock.slideIn && !dock._originalSlideIn) {
         dock._originalSlideIn = dock.slideIn;
-        dock.slideIn = function () {
-          if (Main.overview.visible && !self._tempOverviewReveal) {
-            return;
-          }
-          return dock._originalSlideIn.apply(this, arguments);
+        dock.slideIn = function (...args) {
+          if (Main.overview.visible && !self._tempOverviewReveal) return;
+          return dock._originalSlideIn.apply(this, args);
         };
       }
 
       if (dock.autoHide) {
-        let autoHide = dock.autoHide;
+        const autoHide = dock.autoHide;
 
-        if (typeof autoHide._checkOverlap === 'function' && !autoHide._originalCheckOverlap) {
+        if (autoHide._checkOverlap && !autoHide._originalCheckOverlap) {
           autoHide._originalCheckOverlap = autoHide._checkOverlap;
-          autoHide._checkOverlap = function () {
-            if (Main.overview.visible) {
-              return !self._tempOverviewReveal;
-            }
-            return autoHide._originalCheckOverlap.apply(this, arguments);
+          autoHide._checkOverlap = function (...args) {
+            if (Main.overview.visible) return !self._tempOverviewReveal;
+            return autoHide._originalCheckOverlap.apply(this, args);
           };
         }
 
-        if (typeof autoHide.show === 'function' && !autoHide._originalShow) {
+        if (autoHide.show && !autoHide._originalShow) {
           autoHide._originalShow = autoHide.show;
-          autoHide.show = function () {
-            if (Main.overview.visible && !self._tempOverviewReveal) {
-              return;
-            }
-            return autoHide._originalShow.apply(this, arguments);
+          autoHide.show = function (...args) {
+            if (Main.overview.visible && !self._tempOverviewReveal) return;
+            return autoHide._originalShow.apply(this, args);
           };
         }
       }
@@ -218,23 +194,20 @@ export default class HideDockInOverviewD2DA extends Extension {
   }
 
   _unpatchDocks() {
-    for (let dock of this.docks) {
-      if (!dock) continue;
-
+    for (const dock of this.docks) {
       if (dock._originalSlideIn) {
         dock.slideIn = dock._originalSlideIn;
         delete dock._originalSlideIn;
       }
 
       if (dock.autoHide) {
-        let autoHide = dock.autoHide;
-        if (autoHide._originalCheckOverlap) {
-          autoHide._checkOverlap = autoHide._originalCheckOverlap;
-          delete autoHide._originalCheckOverlap;
+        if (dock.autoHide._originalCheckOverlap) {
+          dock.autoHide._checkOverlap = dock.autoHide._originalCheckOverlap;
+          delete dock.autoHide._originalCheckOverlap;
         }
-        if (autoHide._originalShow) {
-          autoHide.show = autoHide._originalShow;
-          delete autoHide._originalShow;
+        if (dock.autoHide._originalShow) {
+          dock.autoHide.show = dock.autoHide._originalShow;
+          delete dock.autoHide._originalShow;
         }
       }
     }
@@ -283,9 +256,6 @@ export default class HideDockInOverviewD2DA extends Extension {
     );
   }
 
-  /**
-   * Pointer motion handler with Multi-Monitor and Multi-Edge (Top/Bottom/Left/Right) support
-   */
   _handlePointerMotion(x, y) {
     const monitor = Main.layoutManager.currentMonitor || Main.layoutManager.primaryMonitor;
     if (!monitor) return;
@@ -297,21 +267,21 @@ export default class HideDockInOverviewD2DA extends Extension {
 
     switch (position) {
       case Position.LEFT:
-        atEdge = x < (monitor.x + threshold);
+        atEdge = x < monitor.x + threshold;
         break;
       case Position.RIGHT:
-        atEdge = x > (monitor.x + monitor.width - threshold);
+        atEdge = x > monitor.x + monitor.width - threshold;
         break;
       case Position.TOP:
-        atEdge = y < (monitor.y + threshold);
+        atEdge = y < monitor.y + threshold;
         break;
       case Position.BOTTOM:
       default:
-        // Default check covers bottom edge or multi-edge proximity if position unknown
-        atEdge = y > (monitor.y + monitor.height - threshold) ||
-                 x < (monitor.x + threshold) ||
-                 x > (monitor.x + monitor.width - threshold) ||
-                 y < (monitor.y + threshold);
+        atEdge =
+          y > monitor.y + monitor.height - threshold ||
+          x < monitor.x + threshold ||
+          x > monitor.x + monitor.width - threshold ||
+          y < monitor.y + threshold;
         break;
     }
 
@@ -327,40 +297,25 @@ export default class HideDockInOverviewD2DA extends Extension {
       }
     } else if (this._tempOverviewReveal && this._isCurrentlyHovering) {
       this._isCurrentlyHovering = false;
-
       if (!this._overviewHideTimeout) {
         this._startTimer(this._revealDelay);
       }
     }
   }
 
-  /**
-   * Determine the current dock orientation / position (0=Top, 1=Bottom, 2=Left, 3=Right)
-   */
   _getPrimaryDockPosition() {
-    for (let dock of this.docks) {
-      if (!dock) continue;
-
-      if (typeof dock._position !== 'undefined') {
-        return dock._position;
-      }
-      if (typeof dock.getPosition === 'function') {
-        return dock.getPosition();
-      }
-      if (typeof dock._orientation !== 'undefined') {
-        return dock._orientation;
-      }
+    for (const dock of this.docks) {
+      if (dock._position !== undefined) return dock._position;
+      if (dock.getPosition) return dock.getPosition();
+      if (dock._orientation !== undefined) return dock._orientation;
     }
-    return Position.BOTTOM; // Fallback
+    return Position.BOTTOM;
   }
 
   _isPointerInDockZone(x, y) {
-    for (let dock of this.docks) {
-      if (!dock) continue;
-
-      if (typeof dock._isWithinDash === 'function') {
-        if (dock._isWithinDash([x, y])) return true;
-      } else if (typeof dock.get_transformed_position === 'function') {
+    for (const dock of this.docks) {
+      if (dock._isWithinDash?.([x, y])) return true;
+      if (dock.get_transformed_position) {
         const [dx, dy] = dock.get_transformed_position();
         const width = dock.width || 0;
         const height = dock.height || 0;
@@ -375,24 +330,16 @@ export default class HideDockInOverviewD2DA extends Extension {
 
   _forceSlideInDocks() {
     this.docks.forEach(dock => {
-      if (!dock) return;
-      let func = dock._originalSlideIn || dock.slideIn;
-      if (typeof func === 'function') {
-        func.apply(dock);
-      } else if (typeof dock.show === 'function') {
-        dock.show();
-      }
+      const func = dock._originalSlideIn || dock.slideIn;
+      if (func) func.apply(dock);
+      else dock.show?.();
     });
   }
 
   _forceSlideOutDocks() {
     this.docks.forEach(dock => {
-      if (!dock) return;
-      if (typeof dock.slideOut === 'function') {
-        dock.slideOut();
-      } else if (typeof dock.hide === 'function') {
-        dock.hide();
-      }
+      if (dock.slideOut) dock.slideOut();
+      else dock.hide?.();
     });
   }
 }
